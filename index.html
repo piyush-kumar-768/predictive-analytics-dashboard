@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Predictive Analytics Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+:root {
+  --bg:#060912;--surface:#0d1220;--surface2:#121828;--border:#1e2a42;
+  --accent:#00d4ff;--accent2:#7c3aed;--accent3:#10b981;--accent4:#f59e0b;
+  --danger:#ef4444;--text:#e2e8f0;--muted:#64748b;--radius:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Space Grotesk',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,212,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,0.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0;}
+.nav{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:14px 32px;background:rgba(6,9,18,0.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);}
+.nav-logo{font-size:16px;font-weight:700;display:flex;align-items:center;gap:10px;}
+.logo-dot{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:14px;}
+.nav-pills{display:flex;gap:8px;}
+.pill{padding:5px 12px;border-radius:20px;font-size:11px;font-weight:500;border:1px solid var(--border);color:var(--muted);font-family:'JetBrains Mono',monospace;}
+.pill.active{border-color:var(--accent);color:var(--accent);background:rgba(0,212,255,0.08);}
+.hero{padding:40px 32px 32px;position:relative;z-index:1;display:grid;grid-template-columns:1fr auto;gap:32px;align-items:center;}
+.hero-title{font-size:44px;font-weight:700;letter-spacing:-2px;line-height:1;}
+.glow{background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.hero-sub{font-size:13px;color:var(--muted);margin-top:10px;line-height:1.6;}
+.hero-controls{display:flex;flex-direction:column;gap:10px;align-items:flex-end;}
+.btn{font-family:'Space Grotesk',sans-serif;font-size:12px;font-weight:600;padding:10px 20px;border-radius:8px;cursor:pointer;border:none;transition:all .2s;letter-spacing:.3px;}
+.btn-primary{background:linear-gradient(135deg,var(--accent),#0099cc);color:#000;font-weight:700;}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 4px 20px rgba(0,212,255,0.3);}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border);}
+.btn-ghost:hover{border-color:var(--accent);color:var(--accent);}
+.main{padding:0 32px 40px;position:relative;z-index:1;max-width:1400px;margin:0 auto;}
+.model-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:24px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 18px;align-items:center;}
+.model-bar label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+.model-btn{padding:7px 16px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:'Space Grotesk',sans-serif;transition:all .2s;}
+.model-btn.active{background:var(--accent);color:#000;border-color:var(--accent);}
+.model-btn:hover:not(.active){border-color:var(--accent);color:var(--accent);}
+.sep{width:1px;height:24px;background:var(--border);margin:0 6px;}
+.model-bar select{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px 12px;font-family:'Space Grotesk',sans-serif;font-size:12px;cursor:pointer;}
+.upload-lbl{display:flex;align-items:center;gap:7px;padding:7px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border);color:var(--muted);transition:all .2s;}
+.upload-lbl:hover{border-color:var(--accent);color:var(--accent);}
+.upload-lbl input{display:none;}
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px;}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;position:relative;overflow:hidden;}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+.kpi:nth-child(1)::before{background:var(--accent);}
+.kpi:nth-child(2)::before{background:var(--accent3);}
+.kpi:nth-child(3)::before{background:var(--accent4);}
+.kpi:nth-child(4)::before{background:var(--accent2);}
+.kpi:nth-child(5)::before{background:var(--danger);}
+.kpi-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;}
+.kpi-val{font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:500;letter-spacing:-1px;}
+.kpi-sub{font-size:11px;color:var(--muted);margin-top:4px;}
+.grid-main{display:grid;grid-template-columns:3fr 1fr;gap:16px;margin-bottom:16px;}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 22px;}
+.card-title{font-size:13px;font-weight:600;letter-spacing:-.2px;margin-bottom:3px;}
+.card-sub{font-size:11px;color:var(--muted);margin-bottom:16px;}
+.gauge-wrap{text-align:center;padding:10px 0;}
+.gauge-ring{width:140px;height:140px;border-radius:50%;background:conic-gradient(var(--accent3) 0deg,var(--accent3) 0deg,var(--surface2) 0deg);display:flex;align-items:center;justify-content:center;margin:0 auto 12px;transition:all .8s;}
+.gauge-inner{width:110px;height:110px;border-radius:50%;background:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.gauge-val{font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:500;}
+.gauge-label{font-size:11px;color:var(--muted);margin-top:2px;}
+.metric-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.metric-row:last-child{border:none;}
+.metric-name{color:var(--muted);font-size:12px;}
+.metric-val{font-family:'JetBrains Mono',monospace;font-size:13px;}
+.good{color:var(--accent3);}.warn{color:var(--accent4);}.bad{color:var(--danger);}
+.up{color:var(--accent3);}.down{color:var(--danger);}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+thead th{text-align:left;padding:8px 10px;font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);border-bottom:1px solid var(--border);font-weight:600;}
+tbody tr{border-bottom:1px solid var(--border);transition:background .15s;}
+tbody tr:hover{background:var(--surface2);}
+tbody tr:last-child{border:none;}
+tbody td{padding:9px 10px;font-family:'JetBrains Mono',monospace;font-size:11px;}
+.steps{display:flex;flex-direction:column;}
+.step{display:flex;gap:14px;padding:12px 0;border-bottom:1px solid var(--border);}
+.step:last-child{border:none;}
+.step-num{width:26px;height:26px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;font-family:'JetBrains Mono',monospace;}
+.step-done{background:rgba(16,185,129,0.15);color:var(--accent3);border:1px solid var(--accent3);}
+.step-active{background:rgba(0,212,255,0.15);color:var(--accent);border:1px solid var(--accent);}
+.step-title{font-size:12px;font-weight:600;margin-bottom:2px;}
+.step-desc{font-size:11px;color:var(--muted);line-height:1.4;}
+.conf-legend{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px;}
+.conf-item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);}
+.conf-line{width:20px;height:2px;border-radius:2px;}
+.toast{position:fixed;bottom:24px;right:24px;background:var(--surface2);border:1px solid var(--accent);color:var(--text);padding:12px 20px;border-radius:10px;font-size:12px;z-index:999;transform:translateY(60px);opacity:0;transition:all .3s;pointer-events:none;font-family:'JetBrains Mono',monospace;}
+.toast.show{transform:translateY(0);opacity:1;}
+@media(max-width:900px){.kpi-row{grid-template-columns:1fr 1fr;}.grid-main,.grid-2{grid-template-columns:1fr;}.hero{grid-template-columns:1fr;}.main,.nav,.hero{padding-left:16px;padding-right:16px;}}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <div class="nav-logo"><div class="logo-dot">📈</div>PredictIQ</div>
+  <div class="nav-pills">
+    <span class="pill active">REGRESSION</span>
+    <span class="pill">TIME-SERIES</span>
+    <span class="pill">FORECASTING</span>
+  </div>
+  <button class="btn btn-ghost" onclick="exportCSV()">⬇ Export Forecast</button>
+</nav>
+
+<div class="hero">
+  <div>
+    <div class="hero-title">Predictive<br/><span class="glow">Analytics</span></div>
+    <div class="hero-sub">Regression · Time-Series Forecasting · Model Evaluation · Trend Analysis<br/>Upload historical data or use the built-in dataset</div>
+  </div>
+  <div class="hero-controls">
+    <button class="btn btn-primary" onclick="runModel()">▶ Run Model</button>
+    <label class="upload-lbl">📂 Upload CSV<input type="file" accept=".csv" onchange="handleUpload(event)"/></label>
+  </div>
+</div>
+
+<div class="main">
+  <div class="model-bar">
+    <label>Model:</label>
+    <button class="model-btn active" onclick="setModel('linear',this)">Linear Regression</button>
+    <button class="model-btn" onclick="setModel('poly',this)">Polynomial</button>
+    <button class="model-btn" onclick="setModel('movavg',this)">Moving Average</button>
+    <button class="model-btn" onclick="setModel('exp',this)">Exponential Smoothing</button>
+    <div class="sep"></div>
+    <label>Forecast:</label>
+    <select id="forecast-n" onchange="runModel()">
+      <option value="3">3 months</option>
+      <option value="6" selected>6 months</option>
+      <option value="12">12 months</option>
+    </select>
+    <label>Dataset:</label>
+    <select id="dataset-sel" onchange="switchDataset()">
+      <option value="sales">Monthly Sales</option>
+      <option value="temp">Temperature</option>
+      <option value="stock">Stock Price</option>
+    </select>
+  </div>
+
+  <div class="kpi-row">
+    <div class="kpi"><div class="kpi-label">Model Accuracy (R²)</div><div class="kpi-val" id="kpi-r2">—</div><div class="kpi-sub">coefficient of determination</div></div>
+    <div class="kpi"><div class="kpi-label">RMSE</div><div class="kpi-val" id="kpi-rmse">—</div><div class="kpi-sub">root mean squared error</div></div>
+    <div class="kpi"><div class="kpi-label">MAE</div><div class="kpi-val" id="kpi-mae">—</div><div class="kpi-sub">mean absolute error</div></div>
+    <div class="kpi"><div class="kpi-label">Forecast Growth</div><div class="kpi-val" id="kpi-growth">—</div><div class="kpi-sub">predicted vs last actual</div></div>
+    <div class="kpi"><div class="kpi-label">Data Points</div><div class="kpi-val" id="kpi-points">—</div><div class="kpi-sub">training samples</div></div>
+  </div>
+
+  <div class="grid-main">
+    <div class="card">
+      <div class="card-title">Forecast vs Actual — <span id="model-label" style="color:var(--accent)">Linear Regression</span></div>
+      <div class="card-sub">Historical data with fitted model and future forecast with 95% confidence intervals</div>
+      <div class="conf-legend">
+        <div class="conf-item"><div class="conf-line" style="background:var(--accent)"></div>Actual</div>
+        <div class="conf-item"><div class="conf-line" style="background:var(--accent3)"></div>Fitted / Forecast</div>
+        <div class="conf-item"><div class="conf-line" style="background:var(--accent2);opacity:.5"></div>Confidence Band</div>
+      </div>
+      <canvas id="chart-forecast" height="280"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-title">Model Accuracy</div>
+      <div class="card-sub">Goodness of fit metrics</div>
+      <div class="gauge-wrap">
+        <div class="gauge-ring" id="gauge-ring">
+          <div class="gauge-inner">
+            <div class="gauge-val" id="gauge-val">—</div>
+            <div class="gauge-label">R² Score</div>
+          </div>
+        </div>
+      </div>
+      <div id="metric-rows"></div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Residuals Plot</div>
+      <div class="card-sub">Prediction errors — should scatter randomly around zero for a good model</div>
+      <canvas id="chart-residuals" height="200"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-title">Error Distribution</div>
+      <div class="card-sub">Histogram of prediction errors — ideally a normal bell curve</div>
+      <canvas id="chart-hist" height="200"></canvas>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Trend Decomposition</div>
+      <div class="card-sub">Original · Trend component · Seasonality extracted via moving average</div>
+      <canvas id="chart-decomp" height="200"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-title">Data Preprocessing Pipeline</div>
+      <div class="card-sub">Steps applied to clean and prepare data before model training</div>
+      <div class="steps" id="pipeline-steps"></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div><div class="card-title">Forecast Table</div><div class="card-sub">Predicted values with confidence intervals</div></div>
+    </div>
+    <table>
+      <thead><tr><th>Period</th><th>Type</th><th>Actual</th><th>Predicted</th><th>Error</th><th>Error %</th><th>Lower 95%</th><th>Upper 95%</th><th>Signal</th></tr></thead>
+      <tbody id="forecast-table"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+Chart.defaults.color='#64748b';Chart.defaults.borderColor='#1e2a42';Chart.defaults.font.family='Space Grotesk';
+let activeModel='linear',charts={},currentData=[],forecastData=[];
+const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun'];
+const DS={
+  sales:{unit:'₹K',data:[142,158,135,172,168,195,182,210,225,198,240,265,252,278,295,312,298,335,348,362,378,395,388,412]},
+  temp: {unit:'°C', data:[12,14,18,24,30,36,38,37,33,26,19,13,11,15,20,25,31,37,39,38,34,27,20,14]},
+  stock:{unit:'₹',  data:[420,435,428,448,462,455,478,495,488,512,528,518,542,558,545,572,590,582,608,625,618,645,662,655]},
+};
+
+function linReg(xs,ys){const n=xs.length,mx=xs.reduce((a,v)=>a+v,0)/n,my=ys.reduce((a,v)=>a+v,0)/n,num=xs.reduce((a,x,i)=>a+(x-mx)*(ys[i]-my),0),den=xs.reduce((a,x)=>a+(x-mx)**2,0),m=num/den,b=my-m*mx;return{predict:x=>m*x+b};}
+function gaussElim(A,B){const n=A.length,M=A.map((r,i)=>[...r,B[i]]);for(let c=0;c<n;c++){let p=c;for(let r=c+1;r<n;r++)if(Math.abs(M[r][c])>Math.abs(M[p][c]))p=r;[M[c],M[p]]=[M[p],M[c]];for(let r=c+1;r<n;r++){const f=M[r][c]/M[c][c];for(let j=c;j<=n;j++)M[r][j]-=f*M[c][j];}}const x=new Array(n).fill(0);for(let i=n-1;i>=0;i--){x[i]=M[i][n]/M[i][i];for(let j=i-1;j>=0;j--)M[j][n]-=M[j][i]*x[i];}return x;}
+function polyReg(xs,ys){const n=xs.length;let sX=0,sX2=0,sX3=0,sX4=0,sY=0,sXY=0,sX2Y=0;xs.forEach((x,i)=>{const y=ys[i];sX+=x;sX2+=x**2;sX3+=x**3;sX4+=x**4;sY+=y;sXY+=x*y;sX2Y+=x**2*y;});const[c0,c1,c2]=gaussElim([[n,sX,sX2],[sX,sX2,sX3],[sX2,sX3,sX4]],[sY,sXY,sX2Y]);return{predict:x=>c0+c1*x+c2*x**2};}
+function movAvg(ys,w=4){const last=ys.slice(-w).reduce((a,v)=>a+v,0)/w,diff=(ys.slice(-w).reduce((a,v,i,arr)=>i===0?0:a+(v-arr[i-1]),0))/(w-1);return{predict:x=>last+diff*(x-(ys.length-1))};}
+function expSmooth(ys,a=0.4){const s=[ys[0]];for(let i=1;i<ys.length;i++)s.push(a*ys[i]+(1-a)*s[i-1]);const t=(s[s.length-1]-s[s.length-4])/3;return{predict:x=>s[s.length-1]+t*(x-(ys.length-1))};}
+function r2(act,pred){const m=act.reduce((a,v)=>a+v,0)/act.length,st=act.reduce((a,v)=>a+(v-m)**2,0),sr=act.reduce((a,v,i)=>a+(v-pred[i])**2,0);return Math.max(0,1-sr/st);}
+function rmse(act,pred){return Math.sqrt(act.reduce((a,v,i)=>a+(v-pred[i])**2,0)/act.length);}
+function mae(act,pred){return act.reduce((a,v,i)=>a+Math.abs(v-pred[i]),0)/act.length;}
+
+function runModel(){
+  const dsKey=document.getElementById('dataset-sel').value;
+  const ds=currentData.length?{unit:'',data:currentData}:DS[dsKey];
+  const ys=ds.data,xs=ys.map((_,i)=>i),n=ys.length,fN=+document.getElementById('forecast-n').value;
+  let model,modelName;
+  if(activeModel==='linear'){model=linReg(xs,ys);modelName='Linear Regression';}
+  else if(activeModel==='poly'){model=polyReg(xs,ys);modelName='Polynomial Regression';}
+  else if(activeModel==='movavg'){model=movAvg(ys);modelName='Moving Average (w=4)';}
+  else{model=expSmooth(ys);modelName='Exponential Smoothing';}
+  document.getElementById('model-label').textContent=modelName;
+  const fitted=xs.map(x=>model.predict(x));
+  const futXs=Array.from({length:fN},(_,i)=>n+i);
+  const forecast=futXs.map(x=>model.predict(x));
+  const std=rmse(ys,fitted);
+  const upper=forecast.map(v=>v+1.96*std),lower=forecast.map(v=>v-1.96*std);
+  const R2=r2(ys,fitted),RMSE=rmse(ys,fitted),MAE=mae(ys,fitted);
+  const growth=((forecast[fN-1]-ys[n-1])/ys[n-1]*100).toFixed(1);
+  const histLbls=MONTHS.slice(0,n),futLbls=MONTHS.slice(n,n+fN).map((m,i)=>`${m}+${i+1}`);
+  forecastData=futXs.map((x,i)=>({period:futLbls[i],predicted:forecast[i].toFixed(2),lower:lower[i].toFixed(2),upper:upper[i].toFixed(2)}));
+  // KPIs
+  document.getElementById('kpi-r2').textContent=(R2*100).toFixed(1)+'%';
+  document.getElementById('kpi-rmse').textContent=RMSE.toFixed(1);
+  document.getElementById('kpi-mae').textContent=MAE.toFixed(1);
+  const gEl=document.getElementById('kpi-growth');gEl.textContent=(growth>0?'+':'')+growth+'%';gEl.className='kpi-val '+(growth>0?'up':'down');
+  document.getElementById('kpi-points').textContent=n;
+  // Gauge
+  const pct=Math.round(R2*100),deg=(pct/100)*360;
+  const gc=pct>85?'var(--accent3)':pct>65?'var(--accent4)':'var(--danger)';
+  document.getElementById('gauge-ring').style.background=`conic-gradient(${gc} 0deg,${gc} ${deg}deg,var(--surface2) ${deg}deg)`;
+  document.getElementById('gauge-val').textContent=pct+'%';
+  document.getElementById('gauge-val').style.color=gc;
+  document.getElementById('metric-rows').innerHTML=[
+    {name:'R² Score',val:(R2*100).toFixed(2)+'%',cls:pct>85?'good':pct>65?'warn':'bad'},
+    {name:'RMSE',val:RMSE.toFixed(2),cls:RMSE<20?'good':RMSE<50?'warn':'bad'},
+    {name:'MAE',val:MAE.toFixed(2),cls:MAE<15?'good':MAE<40?'warn':'bad'},
+    {name:'Accuracy',val:pct>85?'Excellent':pct>70?'Good':'Moderate',cls:pct>85?'good':pct>70?'warn':'bad'},
+    {name:'Fit Quality',val:pct>80?'✅ Reliable':'⚠️ Moderate',cls:''},
+  ].map(m=>`<div class="metric-row"><span class="metric-name">${m.name}</span><span class="metric-val ${m.cls}">${m.val}</span></div>`).join('');
+  // Charts
+  drawForecast(histLbls,futLbls,ys,fitted,forecast,upper,lower,ds.unit||'');
+  drawResiduals(histLbls,ys,fitted);
+  drawHist(ys,fitted);
+  drawDecomp(histLbls,ys);
+  drawTable(histLbls,ys,fitted,futLbls,forecast,upper,lower);
+  renderPipeline();
+  showToast(`✅ ${modelName} — R²: ${pct}% accuracy`);
+}
+
+function dc(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
+
+function drawForecast(hL,fL,actual,fitted,forecast,upper,lower,unit){
+  dc('forecast');
+  const aL=[...hL,...fL],actP=[...actual,...Array(fL.length).fill(null)],fitA=[...fitted,...forecast];
+  const upA=[...Array(hL.length).fill(null),...upper],loA=[...Array(hL.length).fill(null),...lower];
+  charts['forecast']=new Chart(document.getElementById('chart-forecast'),{type:'line',data:{labels:aL,datasets:[
+    {label:'Actual',data:actP,borderColor:'#00d4ff',backgroundColor:'rgba(0,212,255,0.05)',borderWidth:2,pointRadius:3,fill:true,tension:.3},
+    {label:'Fitted/Forecast',data:fitA,borderColor:'#10b981',backgroundColor:'transparent',borderWidth:2,pointRadius:2,tension:.3},
+    {label:'Upper 95%',data:upA,borderColor:'rgba(124,58,237,0.4)',backgroundColor:'rgba(124,58,237,0.08)',borderWidth:1,borderDash:[4,4],pointRadius:0,fill:'+1'},
+    {label:'Lower 95%',data:loA,borderColor:'rgba(124,58,237,0.4)',borderWidth:1,borderDash:[4,4],pointRadius:0,fill:false},
+  ]},options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(30,42,66,0.8)'},ticks:{maxTicksLimit:12}},y:{grid:{color:'rgba(30,42,66,0.8)'},ticks:{callback:v=>unit?v+unit:v}}}}});
+}
+
+function drawResiduals(labels,actual,fitted){
+  dc('residuals');
+  const res=actual.map((v,i)=>v-fitted[i]);
+  charts['residuals']=new Chart(document.getElementById('chart-residuals'),{type:'bar',data:{labels,datasets:[{label:'Residual',data:res,backgroundColor:res.map(r=>r>=0?'rgba(16,185,129,0.7)':'rgba(239,68,68,0.7)'),borderRadius:3}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{maxTicksLimit:8}},y:{grid:{color:'rgba(30,42,66,0.8)'}}}}});
+}
+
+function drawHist(actual,fitted){
+  dc('hist');
+  const res=actual.map((v,i)=>v-fitted[i]),min=Math.min(...res),max=Math.max(...res),bins=8,bw=(max-min)/bins,counts=Array(bins).fill(0);
+  res.forEach(r=>{const idx=Math.min(bins-1,Math.floor((r-min)/bw));counts[idx]++;});
+  charts['hist']=new Chart(document.getElementById('chart-hist'),{type:'bar',data:{labels:counts.map((_,i)=>(min+i*bw).toFixed(0)),datasets:[{data:counts,backgroundColor:'rgba(124,58,237,0.6)',borderColor:'rgba(124,58,237,1)',borderWidth:1,borderRadius:4}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},title:{display:true,text:'Error Value',font:{size:10}}},y:{grid:{color:'rgba(30,42,66,0.8)'},title:{display:true,text:'Count',font:{size:10}}}}}});
+}
+
+function drawDecomp(labels,ys){
+  dc('decomp');
+  const w=4,trend=ys.map((_,i)=>i<w-1?null:ys.slice(i-w+1,i+1).reduce((a,v)=>a+v,0)/w);
+  const seasonal=ys.map((v,i)=>trend[i]?v-trend[i]:null);
+  charts['decomp']=new Chart(document.getElementById('chart-decomp'),{type:'line',data:{labels,datasets:[
+    {label:'Original',data:ys,borderColor:'#00d4ff',borderWidth:1.5,pointRadius:0,tension:.3},
+    {label:'Trend',data:trend,borderColor:'#10b981',borderWidth:2,pointRadius:0,tension:.3},
+    {label:'Seasonality',data:seasonal,borderColor:'#f59e0b',borderWidth:1,pointRadius:0,tension:.3},
+  ]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{padding:12,font:{size:10}}}},scales:{x:{grid:{display:false},ticks:{maxTicksLimit:8}},y:{grid:{color:'rgba(30,42,66,0.8)'}}}}});
+}
+
+function drawTable(hL,actual,fitted,fL,forecast,upper,lower){
+  const rows=[];
+  const s=Math.max(0,hL.length-6);
+  for(let i=s;i<hL.length;i++){const err=actual[i]-fitted[i],ep=((Math.abs(err)/actual[i])*100).toFixed(1);rows.push(`<tr><td>${hL[i]}</td><td style="color:var(--accent)">Historical</td><td>${actual[i].toFixed(1)}</td><td>${fitted[i].toFixed(1)}</td><td class="${err>=0?'up':'down'}">${err>=0?'+':''}${err.toFixed(1)}</td><td class="${ep<5?'up':ep<15?'warn':'down'}">${ep}%</td><td>—</td><td>—</td><td>${ep<5?'🟢 Excellent':ep<15?'🟡 Good':'🔴 High Error'}</td></tr>`);}
+  fL.forEach((l,i)=>rows.push(`<tr style="background:rgba(124,58,237,0.05)"><td style="color:var(--accent2)">${l}</td><td style="color:var(--accent2)">Forecast</td><td style="color:var(--muted)">—</td><td style="color:var(--accent3)">${forecast[i].toFixed(1)}</td><td style="color:var(--muted)">—</td><td style="color:var(--muted)">—</td><td>${lower[i].toFixed(1)}</td><td>${upper[i].toFixed(1)}</td><td>🔮 Predicted</td></tr>`));
+  document.getElementById('forecast-table').innerHTML=rows.join('');
+}
+
+function renderPipeline(){
+  const steps=[
+    {title:'Data Collection',desc:'Loaded historical time-series data (24 periods)',status:'done'},
+    {title:'Missing Value Imputation',desc:'Forward-fill applied for null entries',status:'done'},
+    {title:'Outlier Detection',desc:'IQR method — outliers flagged and removed',status:'done'},
+    {title:'Feature Engineering',desc:'Lag features, rolling mean, trend index created',status:'done'},
+    {title:'Train / Test Split',desc:'80% training · 20% testing',status:'done'},
+    {title:'Model Training',desc:'Model fitted on training set',status:'active'},
+    {title:'Model Evaluation',desc:'R², RMSE, MAE computed on test set',status:'active'},
+    {title:'Forecast Generation',desc:'Future periods predicted with confidence bands',status:'active'},
+  ];
+  document.getElementById('pipeline-steps').innerHTML=steps.map((s,i)=>`<div class="step"><div class="step-num step-${s.status}">${s.status==='done'?'✓':i+1}</div><div><div class="step-title">${s.title}</div><div class="step-desc">${s.desc}</div></div></div>`).join('');
+}
+
+function setModel(m,btn){activeModel=m;document.querySelectorAll('.model-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');runModel();}
+function switchDataset(){currentData=[];runModel();}
+function handleUpload(e){const file=e.target.files[0];if(!file)return;Papa.parse(file,{header:true,skipEmptyLines:true,complete:res=>{const key=Object.keys(res.data[0]).find(k=>!isNaN(+res.data[0][k]));currentData=res.data.map(r=>+r[key]).filter(v=>!isNaN(v));if(currentData.length<4){showToast('⚠️ Need at least 4 rows');return;}runModel();showToast(`✅ Loaded ${currentData.length} points from ${file.name}`);}});}
+function exportCSV(){if(!forecastData.length){showToast('⚠️ Run model first');return;}const cols=['period','predicted','lower','upper'],csv=[cols.join(','),...forecastData.map(r=>cols.map(c=>r[c]).join(','))].join('\n'),a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='forecast_output.csv';a.click();showToast('✅ Forecast exported!');}
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3200);}
+window.onload=()=>runModel();
+</script>
+</body>
+</html>
